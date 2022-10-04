@@ -126,14 +126,43 @@ def move_down(tree):
     select(tree, key)
 
 
+# Поднимает или опускает выбранные элементы
+# def replace_elem(tree, direction):
+#    # Список выбранных элементов
+#    select_elems = tree.Widget.selection()
+#    # Если ни один элемент не выбран, то выход
+#    if len(select_elems) == 0:
+#        return
+ 
+#    # Получение основных элементов дерева
+#    treedata = tree.TreeData
+#    tree_root = treedata.tree_dict['']
+#    # Перемещение всех выбранных элементов
+#    for s_e in select_elems:
+#        # Получение отмеченного элемента
+#        elem = treedata.tree_dict[tree.IdToKey[s_e]]
+#        index = tree_root.children.index(elem)
+#        # Перемещение этого элемента
+#        if direction == 'up' and index >= 0:
+#            tree_root.children[index-1], tree_root.children[index] =\
+#                tree_root.children[index], tree_root.children[index-1]
+#            actions_tracker.switch(index-1, index)
+#        elif direction == 'down' and index < len(tree_root.children):
+#            tree_root.children[index], tree_root.children[index+1] =\
+#                tree_root.children[index+1], tree_root.children[index]
+#            actions_tracker.switch(index, index+1)
+#    # Обновление дерева
+#    tree.update(values=treedata)
+
+
 def load_macros(window):
     macros_file = sg.popup_get_file(
         '',
-        file_types=(('TXT files ', '*.txt'),),
+        file_types=(('JSON files ', '*.json'),),
         no_window=True
     )
     with open(macros_file, 'r') as infile:
-        actions_tracker.from_string(infile.read())
+        actions_tracker.from_json(infile.read())
     
     treedata = sg.TreeData()
     for i in range(actions_tracker.length()):
@@ -142,16 +171,6 @@ def load_macros(window):
 
 
 actions_tracker = ActionsTrack()
-
-# fruits = [
-#     "Apple", "Banana", "Cherry", "Durian", "Elderberry", "Guava", "Jackfruit",
-#     "Kiwi", "Lemon", "Mango", "Orange", "Papaya", "Strawberry", "Tomato",
-#     "Watermelon",
-# ]
-
-# treedata = sg.TreeData()
-# for i, fruit in enumerate(fruits):
-#     treedata.Insert('', i, fruit, values=[f'Fruit {i:0>2d}'])
 
 layout = [
     [

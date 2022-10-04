@@ -1,3 +1,4 @@
+import json
 import time
 from pynput import keyboard, mouse
 from screeninfo import get_monitors
@@ -36,7 +37,7 @@ class ActionsTrack:
                 'y': kwargs['y']
             }
             if action == 'press' or action == 'release':
-                action_dict['key'] = kwargs['key']
+                action_dict['button'] = kwargs['button']
             if action == 'scroll':
                 action_dict['dx'] = kwargs['dx']
                 action_dict['dy'] = kwargs['dy']
@@ -44,24 +45,26 @@ class ActionsTrack:
         else:
             raise ValueError('Wrong device name.')
 
+    def clear(self):
+        self.track = []
+
     # vvvv mouse vvvv
 
-    def on_move_mouse_track(self, x, y):
+    def on_move_mouse(self, x, y):
         if self.is_tracking:
             pass
 
-    def on_click_mouse_track(self, x, y, button, is_pressed):
+    def on_click_mouse(self, x, y, button, is_pressed):
         if self.is_tracking:
             self._add_action(
                 'mouse',
                 'press' if is_pressed else 'release',
                 x=x,
                 y=y,
-                key=button
+                button=button
             )
 
-
-    def on_scroll_mouse_track(self, x, y, dx, dy):
+    def on_scroll_mouse(self, x, y, dx, dy):
         if self.is_tracking:
             self._add_action(
                 'mouse',
@@ -72,11 +75,10 @@ class ActionsTrack:
                 dy=dy
             )
 
-
     # ^^^^ mouse ^^^^
     # vvvv keyboard vvvv
 
-    def on_press_keyboard_track(self, key):
+    def on_press_keyboard(self, key):
         if key == self.hotkey_macros_write:
             # nothing
             pass
@@ -88,7 +90,7 @@ class ActionsTrack:
             )
             self.pressed_keys.add(key)
 
-    def on_release_keyboard_track(self, key):
+    def on_release_keyboard(self, key):
         if key == self.hotkey_macros_write:
             self.is_tracking = not self.is_tracking
         elif self.is_tracking:
@@ -99,18 +101,17 @@ class ActionsTrack:
             )
             self.pressed_keys.discard(key)
 
-
     # ^^^^ keyboard ^^^^
 
     def start(self):
         self.keyboard_listener = keyboard.Listener(
-            on_press=self.on_press_keyboard_track,
-            on_release=self.on_release_keyboard_track
+            on_press=self.on_press_keyboard,
+            on_release=self.on_release_keyboard
         )
         self.mouse_listener = mouse.Listener(
-            on_move=self.on_move_mouse_track,
-            on_click=self.on_click_mouse_track,
-            on_scroll=self.on_scroll_mouse_track
+            on_move=self.on_move_mouse,
+            on_click=self.on_click_mouse,
+            on_scroll=self.on_scroll_mouse
         )
 
         self.is_listening = True # !!!
@@ -161,18 +162,18 @@ class ActionsTrack:
                     mouse_controller.scroll(t['dx'], t['dy'])
                 # Нажатие клавиши мыши
                 elif t['action'] == 'press':
-                    mouse_controller.press(t['key'])
+                    mouse_controller.press(t['button'])
                 # Отпуск клавиши мыши
                 elif t['action'] == 'release':
-                    mouse_controller.release(t['key'])
+                    mouse_controller.release(t['button'])
 
-    mouse_buttom_to_string = {
-        mouse.Button.left: 'l',
-        mouse.Button.right: 'r',
-        mouse.Button.middle: 'm'
-    }
-    string_to_mouse_button = {v: k for k, v in mouse_buttom_to_string.items()}    
-    space_key_code = '000'
+    # mouse_buttom_to_string = {
+    #     mouse.Button.left: 'l',
+    #     mouse.Button.right: 'r',
+    #     mouse.Button.middle: 'm'
+    # }
+    # string_to_mouse_button = {v: k for k, v in mouse_buttom_to_string.items()}    
+    # space_key_code = '000'
 
     def get_resolution():        
         # Значения разрешения главного экрана
@@ -184,128 +185,51 @@ class ActionsTrack:
                 primary_monitor_resolution['height'] = m.height
                 break
         return primary_monitor_resolution
-
-    def coord_to_string(x, y):
+    
+    def to_relative_coord(x, y):
         resolution = ActionsTrack.get_resolution()
-        return f'{x / resolution["width"]:.2f}{y / resolution["height"]:.2f}'
+        return x / resolution['width'], y / resolution['height']
 
-    def string_to_coord(str_coord):
+    def to_absolute_coord(x, y):
         resolution = ActionsTrack.get_resolution()
-        return round(float(str_coord[:4]) * resolution['width']), \
-            round(float(str_coord[4:]) * resolution['height'])
+        return round(x * resolution['width']), round(y * resolution['height'])
 
-    def key_to_string(key):
-        try:
-            return key.char
-        except AttributeError:
-            if key == keyboard.Key.space:
-                return ActionsTrack.space_key_code
-            return f'{str(key.value)[1:-1]:0>3}'
+    def to_json(self):        
+        def convert(t):
+            if 'key' in t:
+                try:
+                    t['key'] = t['key'].char
+                except AttributeError:
+                    t['key'] = str(t['key']).replace('Key.', '')
+            elif 'button' in t:
+                t['button'] = str(t['button']).replace('Button.', '')            
+            if 'x' in t and 'y' in t:
+                t['x'], t['y'] = ActionsTrack.to_relative_coord(t['x'], t['y'])
+            return t
 
-    def string_to_key(string):
-        if len(string) > 1:
-            if string == ActionsTrack.space_key_code:
-                return keyboard.Key.space
-            else:
-                return keyboard.KeyCode.from_vk(int(string))
-        else:
-            return string
+        return json.dumps([convert(t) for t in self.track], indent=4)
 
-    def to_string(self):
-        list_str = []
-        for t in self.track:
-            if t['device'] == 'mouse':
-                if t['action'] == 'press':
-                    list_str.append(
-                        f'm'
-                        f'{ActionsTrack.coord_to_string(t["x"], t["y"])}'
-                        f'p'
-                        f'{ActionsTrack.mouse_buttom_to_string[t["key"]]}'
-                    )
-                elif t['action'] == 'release':
-                    list_str.append(
-                        f'm'
-                        f'{ActionsTrack.coord_to_string(t["x"], t["y"])}'
-                        f'r'
-                        f'{ActionsTrack.mouse_buttom_to_string[t["key"]]}'
-                    )
-                elif t['action'] == 'scroll':
-                    list_str.append(
-                        f'm'
-                        f'{ActionsTrack.coord_to_string(t["x"], t["y"])}'
-                        f's'
-                        f'{t["dx"]:+}{t["dy"]:+}'
-                    )
-                elif t['action'] == 'move':
-                    list_str.append(
-                        f'm'
-                        f'{ActionsTrack.coord_to_string(t["x"], t["y"])}'
-                        f'm'
-                    )
+    def from_json(self, json_str):
+        self.clear()
+               
+        def convert(t):
+            if 'key' in t:
+                if len(t['key']) == 1:
+                    t['key'] = keyboard.KeyCode.from_char(t['key'])
+                else:
+                    t['key'] = keyboard.Key[t['key']]
+            elif 'button' in t:
+                t['button'] = mouse.Button[t['button']]
+            if 'x' in t and 'y' in t:
+                t['x'], t['y'] = ActionsTrack.to_absolute_coord(t['x'], t['y'])
+            return t
 
-            elif t['device'] == 'keyboard':
-                if t['action'] == 'press':
-                    list_str.append(
-                        f'kp'
-                        f'{ActionsTrack.key_to_string(t["key"])}'
-                    )
-                elif t['action'] == 'release':
-                    list_str.append(
-                        f'kr'
-                        f'{ActionsTrack.key_to_string(t["key"])}'
-                    )
-        
-        return '--'.join(list_str)
-
-    def from_string(self, track_str):
-        self.track = []
-        list_actions = track_str.split('--')
-        for l_a in list_actions:
-            # Действия клавиатуры
-            if l_a[0] == 'k':
-                key = ActionsTrack.string_to_key(l_a[2:])
-
-                # Нажатие клавиши клавиатуры
-                if l_a[1] == 'p':
-                    self._add_action('keyboard', 'press', key=key)
-                # Отпуск клавиши клавиатуры
-                elif l_a[1] == 'r':
-                    self._add_action('keyboard', 'release', key=key)
-
-            # Действия мыши
-            elif l_a[0] == 'm':
-                position_dx, position_dy = ActionsTrack.string_to_coord(l_a[1:9])
-
-                # Прокручивание колёсика
-                if l_a[9] == 's':
-                    dx = int(l_a[10:12])
-                    dy = int(l_a[12:14])
-                    self._add_action(
-                        'mouse',
-                        'scroll',
-                        x=position_dx,
-                        y=position_dy,
-                        dx=dx,
-                        dy=dy
-                    )
-                # Нажатие клавиши мыши
-                elif l_a[9] == 'p':
-                    self._add_action(
-                        'mouse',
-                        'press',
-                        x=position_dx,
-                        y=position_dy,
-                        key=ActionsTrack.string_to_mouse_button[l_a[10]]
-                    )
-                # Отпуск клавиши мыши
-                elif l_a[9] == 'r':
-                    self._add_action(
-                        'mouse',
-                        'release',
-                        x=position_dx,
-                        y=position_dy,
-                        key=ActionsTrack.string_to_mouse_button[l_a[10]]
-                    )
+        for t in json.loads(json_str):
+            self._add_action(
+                device=t['device'],
+                action=t['action'],
+                **{k: v for k, v in convert(t).items() if k not in ['device', 'action']}
+            )
 
     def length(self):
         return len(self.track)
@@ -326,6 +250,6 @@ class ActionsTrack:
                                  f' dy - {self.track[index]["dy"]}'
             elif (self.track[index]["action"] == 'press' or 
                   self.track[index]["action"] == 'release'):                
-                return_string += f' key - {self.track[index]["key"]}'
+                return_string += f' button - {self.track[index]["button"]}'
 
             return return_string

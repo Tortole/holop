@@ -1,0 +1,126 @@
+[
+    {
+        "device": "mouse",
+        "action": "press",
+        "x": 0.3271484375,
+        "y": 0.24421296296296297,
+        "button": "left"
+    },
+    {
+        "device": "mouse",
+        "action": "release",
+        "x": 0.3271484375,
+        "y": 0.24421296296296297,
+        "button": "left"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "shift"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "home"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "home"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "shift"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "backspace"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "backspace"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "shift"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "H"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "H"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "shift"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "e"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "e"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "l"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "l"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "l"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "l"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "o"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "o"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "shift"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "!"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "!"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "shift"
+    }
+]

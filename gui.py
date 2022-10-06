@@ -1,161 +1,60 @@
 from actions_track import ActionsTrack
 
-
-# import PySimpleGUI as sg
-#
-# # help(sg.Column)
-#
-# test_list = list(range(20))
-#
-# def up_elem(button_key):
-#     pass
-#
-# column1 = [
-#     [sg.Button(f'up', key=f'up-{i}'), sg.Text(f'Scrollable {v}')] for i, v in enumerate(test_list)
-# ]
-#
-# # column2 = [
-# #     [sg.Text(f'Static{i}')] for i in range(10)
-# # ]
-#
-# layout = [
-#     [
-#         sg.Column(column1, scrollable=True,  vertical_scroll_only=True, size=(1500, 600)),
-#         # sg.Column(column2)
-#     ]
-# ]
-#
-# window = sg.Window(
-#     'Scrollable',
-#     layout,
-#     # size=(2000, 1200)
-# )
-#
-# while True:
-#     event, values = window.read()
-#     print(event)
-#     print(values)
-#     if event == sg.WIN_CLOSED or event == 'Cancel': # if user closes window or clicks cancel
-#         break
-#
-# window.close()
-
-
-
-
-# import PySimpleGUI as sg
-
-# sg.theme('DarkAmber')   # Add a touch of color
-# # All the stuff inside your window.
-# layout = [  [sg.Text('Some text on Row 1')],
-#             [sg.Text('Enter something on Row 2'), sg.InputText()],
-#             [sg.Button('Ok'), sg.Button('Cancel')] ]
-
-# # Create the Window
-# window = sg.Window('Window Title', layout)
-# # Event Loop to process "events" and get the "values" of the inputs
-# while True:
-#     event, values = window.read()
-#     if event == sg.WIN_CLOSED or event == 'Cancel': # if user closes window or clicks cancel
-#         break
-#     print('You entered ', values[0])
-
-# window.close()
-
-
-
-
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/3441
 import PySimpleGUI as sg
 
 
-def hide_header(tree):
-    tree.Widget.configure(show='tree')
-
-
-def key_to_id(tree, key):
+def key_to_tree_id(tree, key):
     for k, v in tree.IdToKey.items():
         if v == key:
             return k
     return None
 
 
-def select(tree, key=''):
-    iid = key_to_id(tree, key)
-    if iid:
-        tree.Widget.see(iid)
-        tree.Widget.selection_set(iid)
-
-
-def where(tree):
-    item = tree.Widget.selection()
-    return '' if len(item) == 0 else tree.IdToKey[item[0]]
-
-
-def move_up(tree):
-    key =  where(tree)
-    if key == '': return
-    
-    treedata = tree.TreeData
-    node = treedata.tree_dict[key]
-    parent_node = treedata.tree_dict[node.parent]
-    index = parent_node.children.index(node)
-    if index != 0:
-        parent_node.children[index-1], parent_node.children[index] = (
-            parent_node.children[index], parent_node.children[index-1])
-        actions_tracker.switch(index-1, index)
-
-    tree.update(values=treedata)
-    select(tree, key)
-
-
-def move_down(tree):
-    key = where(tree)
-    if key == '': return
-
-    treedata = tree.TreeData
-    node = treedata.tree_dict[key]
-    parent_node = treedata.tree_dict[node.parent]
-    index = parent_node.children.index(node)
-    if index != len(parent_node.children)-1:
-        parent_node.children[index+1], parent_node.children[index] = (
-            parent_node.children[index], parent_node.children[index+1])
-        actions_tracker.switch(index, index+1)
-
-    tree.update(values=treedata)
-    select(tree, key)
-
-
 # Поднимает или опускает выбранные элементы
-# def replace_elem(tree, direction):
-#    # Список выбранных элементов
-#    select_elems = tree.Widget.selection()
-#    # Если ни один элемент не выбран, то выход
-#    if len(select_elems) == 0:
-#        return
- 
-#    # Получение основных элементов дерева
-#    treedata = tree.TreeData
-#    tree_root = treedata.tree_dict['']
-#    # Перемещение всех выбранных элементов
-#    for s_e in select_elems:
-#        # Получение отмеченного элемента
-#        elem = treedata.tree_dict[tree.IdToKey[s_e]]
-#        index = tree_root.children.index(elem)
-#        # Перемещение этого элемента
-#        if direction == 'up' and index >= 0:
-#            tree_root.children[index-1], tree_root.children[index] =\
-#                tree_root.children[index], tree_root.children[index-1]
-#            actions_tracker.switch(index-1, index)
-#        elif direction == 'down' and index < len(tree_root.children):
-#            tree_root.children[index], tree_root.children[index+1] =\
-#                tree_root.children[index+1], tree_root.children[index]
-#            actions_tracker.switch(index, index+1)
-#    # Обновление дерева
-#    tree.update(values=treedata)
+def elements_elevator(tree, direction):
+    # Список выбранных элементов
+    select_elems = tree.Widget.selection()
+    # Если ни один элемент не выбран, то выход
+    if len(select_elems) == 0:
+        return
+
+    if direction == 'up':
+        iter = -1
+    elif direction == 'down':
+        # len(parent_node.children)-1
+        iter = 1
+        select_elems = select_elems[::-1]
+
+    # Получение основных элементов дерева
+    treedata = tree.TreeData
+    tree_root = treedata.tree_dict['']
+    # Условие перемещение:
+    # если элементы не у вехнего края при перемещении вверх
+    # и не у нижнего края при перемещении вниз
+    if tree_root.children.index(treedata.tree_dict[tree.IdToKey[select_elems[0]]]) not in [0, len(tree_root.children)-1]:
+        # Перемещение всех выбранных элементов
+        for s_e in select_elems:
+            # Получение отмеченного элемента
+            elem = treedata.tree_dict[tree.IdToKey[s_e]]
+            index = tree_root.children.index(elem)
+            # Перемещение этого элемента
+            tree_root.children[index], tree_root.children[index+iter] =\
+                tree_root.children[index+iter], tree_root.children[index]
+            actions_tracker.switch(index, index+iter)
+
+    # Ключи элементов в дереве, которые потом нужно будет выделить
+    key_to_select = [tree.IdToKey[s_e] for s_e in select_elems]
+    # Обновление дерева
+    tree.update(values=treedata)
+    # Выделение элементов в дереве, ранее выбранных пользователем
+    tree_ids = [key_to_tree_id(tree, key) for key in key_to_select]
+    if tree_ids:
+        tree.Widget.see(tree_ids[0])
+        tree.Widget.selection_set(tree_ids)
 
 
-def load_macros(window):
+def load_macros(tree):
     macros_file = sg.popup_get_file(
         '',
         file_types=(('JSON files ', '*.json'),),
@@ -166,40 +65,44 @@ def load_macros(window):
     
     treedata = sg.TreeData()
     for i in range(actions_tracker.length()):
-        treedata.Insert('', i, actions_tracker.get_action(i), values=[f'key {i:0>2d}'])
-    window.Element('TREE').update(values=treedata)
+        treedata.Insert('', i, actions_tracker.get_action(i), values=[])
+    tree.update(values=treedata)
 
 
 actions_tracker = ActionsTrack()
 
 layout = [
     [
+        # sg.Button('Up'), sg.Button('Down'), 
         sg.Button('Move Up'), sg.Button('Move Down'), 
         sg.Button('Add'), sg.Button('Delete'), 
         sg.Button('Change'), sg.Button('Clear'),
     ],
     [sg.Tree(
         data=sg.TreeData(),
-        key='TREE',
+        key='Track tree',
         headings=['Nothing'],
-        select_mode=sg.TABLE_SELECT_MODE_BROWSE,
+        # select_mode=sg.TABLE_SELECT_MODE_BROWSE,
     )],
     [sg.Button('Run'), sg.Button('Load'), sg.Button('Save')],
+    # [sg.Button('Run'), sg.Button('Record')],
 ]
 
-window = sg.Window('Holop', layout, resizable=True, size=(500, 500), finalize=True)
-window["TREE"].expand(True,True)
-# tree = window['TREE']
-hide_header(window['TREE'])
+window = sg.Window('Holop', layout, resizable=True, size=(1000, 1000), finalize=True)
+window['Track tree'].expand(True,True)
+# Hide titles of columns
+window['Track tree'].Widget.configure(show='tree')
 
 while True:
     event, values = window.read()
     if event == sg.WINDOW_CLOSED:
         break
     elif event == 'Move Up':
-        move_up(window.Element('TREE'))
+        # move_up(window['Track tree'])
+        elements_elevator(window['Track tree'], 'up')
     elif event == 'Move Down':
-        move_down(window.Element('TREE'))
+        # move_down(window['Track tree'])
+        elements_elevator(window['Track tree'], 'down')
     elif event == 'Add':
         print('Add not work yet')
     elif event == 'Delete':
@@ -211,7 +114,7 @@ while True:
     elif event == 'Run':
         print('Run not work yet')
     elif event == 'Load':
-        load_macros(window)
+        load_macros(window['Track tree'])
     elif event == 'Save':
         print('Save not work yet')
 

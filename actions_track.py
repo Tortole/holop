@@ -239,17 +239,23 @@ class ActionsTrack:
 
     def get_action(self, index):
         if self.track[index]['device'] == 'keyboard':
-            return f'{self.track[index]["action"]} {self.track[index]["key"]}'
+            if len(str(self.track[index]["key"])) <= 3:
+                return f'{self.track[index]["action"]} {self.track[index]["key"]}'
+            else:
+                return f'{self.track[index]["action"]} {str(self.track[index]["key"]).replace("Key.", "").upper()}'
 
         elif self.track[index]['device'] == 'mouse':
-            return_string = f'{self.track[index]["action"]}'\
-                            f' x - {self.track[index]["x"]}'\
-                            f' y - {self.track[index]["y"]}'
-            if self.track[index]["action"] == 'scroll':
-                return_string += f' dx - {self.track[index]["dx"]}'\
-                                 f' dy - {self.track[index]["dy"]}'
-            elif (self.track[index]["action"] == 'press' or 
-                  self.track[index]["action"] == 'release'):                
-                return_string += f' button - {self.track[index]["button"]}'
+            return_string = f'{self.track[index]["action"]}'
+            if self.track[index]['action'] == 'scroll':
+                dx_direction = {-1: ' left', 0: '', 1: ' right'}
+                dy_direction = {-1: ' down', 0: '', 1: ' up'}
+                return_string += f'{dx_direction[self.track[index]["dx"]]}'\
+                                 f'{dy_direction[self.track[index]["dy"]]};'
+            elif (self.track[index]['action'] == 'press' or 
+                  self.track[index]['action'] == 'release'):                
+                return_string += f' {str(self.track[index]["button"]).replace("Button.", "").upper()} mouse button;'
+
+            return_string += f' x: {self.track[index]["x"]}'\
+                             f' y: {self.track[index]["y"]}'
 
             return return_string

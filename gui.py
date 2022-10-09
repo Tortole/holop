@@ -1,3 +1,5 @@
+import time
+
 from actions_track import ActionsTrack
 
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/3441
@@ -12,7 +14,7 @@ def key_to_tree_id(tree, key):
 
 
 # Поднимает или опускает выбранные элементы
-def elements_elevator(tree, direction):
+def nodes_elevator(tree, direction):
     # Список выбранных элементов
     select_elems = tree.Widget.selection()
     # Если ни один элемент не выбран, то выход
@@ -37,8 +39,8 @@ def elements_elevator(tree, direction):
         # Перемещение всех выбранных элементов
         for s_e in select_elems:
             # Получение отмеченного элемента
-            elem = treedata.tree_dict[tree.IdToKey[s_e]]
-            index = tree_root.children.index(elem)
+            node = treedata.tree_dict[tree.IdToKey[s_e]]
+            index = tree_root.children.index(node)
             # Перемещение этого элемента
             tree_root.children[index], tree_root.children[index+iter] =\
                 tree_root.children[index+iter], tree_root.children[index]
@@ -55,19 +57,86 @@ def elements_elevator(tree, direction):
         tree.Widget.selection_set(tree_ids)
 
 
+def add_macros(tree):
+    ''''''
+    # Run new key tracker
+    new_macros = ActionsTrack()
+    new_macros.start()
+    # Waiting for stop key tracking
+    while new_macros.is_tracking:
+        pass
+    # Add new key to existing macros
+    actions_tracker.insert(new_macros)
+    treedata = tree.TreeData
+    treedata_len = len(tree.IdToKey)
+    for i in range(new_macros.length()):
+        treedata.Insert('', i+treedata_len, new_macros.get_action(i), values=[])
+    tree.update(values=treedata)
+
+def delete_selected(tree):
+    # Список выбранных элементов
+    select_elems = tree.Widget.selection()
+    # Если ни один элемент не выбран, то выход
+    if len(select_elems) == 0:
+        return
+
+    # Получение основных элементов дерева
+    treedata = tree.TreeData
+
+    # Удаление выбранных элементов
+    for s_e in select_elems:
+        node = treedata.tree_dict[tree.IdToKey[s_e]]
+        parent_node = treedata.tree_dict[node.parent]
+        index = parent_node.children.index(node)
+        actions_tracker.remove(index)
+        parent_node.children.remove(node)
+
+    # Обновление дерева
+    tree.update(values=treedata)
+
+
+def clear_tree(tree):
+    actions_tracker.clear()
+    tree.update(values=sg.TreeData())
+
+
+def run_tracker():
+    time.sleep(4)
+    actions_tracker.run()
+
+
 def load_macros(tree):
+    '''Load macros file with browse dialog'''
+    # User choose file
     macros_file = sg.popup_get_file(
         '',
         file_types=(('JSON files ', '*.json'),),
         no_window=True
     )
+    # If file not chosen
+    if macros_file == '':
+        return
+    # Read file and fill tree
     with open(macros_file, 'r') as infile:
         actions_tracker.from_json(infile.read())
-    
     treedata = sg.TreeData()
     for i in range(actions_tracker.length()):
         treedata.Insert('', i, actions_tracker.get_action(i), values=[])
     tree.update(values=treedata)
+
+
+def save_macros(tree):
+    '''Save macros to file with browse dialog'''
+    # Chose path to save file and its name
+    save_file = sg.popup_get_file(
+        '',
+        file_types=(('JSON files ', '*.json'),),
+        no_window=True,
+        save_as=True
+    )
+    # Save
+    with open(save_file, 'w') as outfile:
+        outfile.write(actions_tracker.to_json())
 
 
 actions_tracker = ActionsTrack()
@@ -76,7 +145,8 @@ layout = [
     [
         sg.Button('Move Up'), sg.Button('Move Down'), 
         sg.Button('Add'), sg.Button('Delete'), 
-        sg.Button('Change'), sg.Button('Clear'),
+        # sg.Button('Change'),
+        sg.Button('Clear'),
     ],
     [sg.Tree(
         data=sg.TreeData(),
@@ -97,24 +167,22 @@ while True:
     if event == sg.WINDOW_CLOSED:
         break
     elif event == 'Move Up':
-        # move_up(window['Track tree'])
-        elements_elevator(window['Track tree'], 'up')
+        nodes_elevator(window['Track tree'], 'up')
     elif event == 'Move Down':
-        # move_down(window['Track tree'])
-        elements_elevator(window['Track tree'], 'down')
+        nodes_elevator(window['Track tree'], 'down')
     elif event == 'Add':
-        print('Add not work yet')
+        add_macros(window['Track tree'])
     elif event == 'Delete':
-        print('Delete not work yet')
-    elif event == 'Change':
-        print('Change not work yet')
+        delete_selected(window['Track tree'])
+    # elif event == 'Change':
+    #     print('Change not work yet')
     elif event == 'Clear':
-        print('Clear not work yet')
+        clear_tree(window['Track tree'])
     elif event == 'Run':
-        print('Run not work yet')
+        run_tracker()
     elif event == 'Load':
         load_macros(window['Track tree'])
     elif event == 'Save':
-        print('Save not work yet')
+        save_macros(window['Track tree'])
 
 window.close()

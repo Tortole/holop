@@ -45,6 +45,9 @@ class ActionsTrack:
         else:
             raise ValueError('Wrong device name.')
 
+    def remove(self, index):
+        del self.track[index]
+
     def clear(self):
         self.track = []
 
@@ -131,7 +134,7 @@ class ActionsTrack:
         self.mouse_listener.stop()
         self.keyboard_listener.stop()
 
-    def insert(self, index, actions_track):
+    def insert(self, actions_track, index=-1):
         if self.length() <= index < 0: raise ValueError('Index incorrect.')
         self.track[index:index] = actions_track.track
 

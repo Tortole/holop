@@ -1,111 +1,114 @@
 import time
-
-from actions_track import ActionsTrack
-
-# https://github.com/PySimpleGUI/PySimpleGUI/issues/3441
 import PySimpleGUI as sg
+
+from macros_recorder import MacrosRecorder
 
 
 def key_to_tree_id(tree, key):
+    '''Get id of tree element'''
     for k, v in tree.IdToKey.items():
         if v == key:
             return k
     return None
 
 
-# Поднимает или опускает выбранные элементы
-def nodes_elevator(tree, direction):
-    # Список выбранных элементов
-    select_elems = tree.Widget.selection()
-    # Если ни один элемент не выбран, то выход
-    if len(select_elems) == 0:
+def tree_elements_move(tree, direction):
+    '''Up or down tree elements'''
+    # List of selected tree elements
+    selected_elements = tree.Widget.selection()
+    # If no one element selected then exit
+    if len(selected_elements) == 0:
         return
 
+    # Determine direction of the selected elements list iteration
     if direction == 'up':
         iter = -1
+        # selected_elements = selected_elements
     elif direction == 'down':
         iter = 1
-        select_elems = select_elems[::-1]
+        selected_elements = selected_elements[::-1]
 
-    # Получение основных элементов дерева
+    # Getting the main elements of the tree
     treedata = tree.TreeData
     tree_root = treedata.tree_dict['']
-    # Условие перемещение:
-    # если элементы не у вехнего края при перемещении вверх
-    # и не у нижнего края при перемещении вниз
-    index_first_element = tree_root.children.index(treedata.tree_dict[tree.IdToKey[select_elems[0]]])
+    # Moving condition:
+    # if the elements are not at the top edge when moving up
+    # and not at the bottom edge when moving down
+    index_first_element = tree_root.children.index(treedata.tree_dict[tree.IdToKey[selected_elements[0]]])
     if not ((direction == 'up' and index_first_element == 0) or
             (direction == 'down' and index_first_element == len(tree_root.children)-1)):
-        # Перемещение всех выбранных элементов
-        for s_e in select_elems:
-            # Получение отмеченного элемента
+        # Moving all selected elements
+        for s_e in selected_elements:
+            # Getting current selected element
             node = treedata.tree_dict[tree.IdToKey[s_e]]
             index = tree_root.children.index(node)
-            # Перемещение этого элемента
+            # Moving this element in tree
             tree_root.children[index], tree_root.children[index+iter] =\
                 tree_root.children[index+iter], tree_root.children[index]
-            actions_tracker.switch(index, index+iter)
+            # and swap in macro
+            macro_record.swap(index, index+iter)
 
-    # Ключи элементов в дереве, которые потом нужно будет выделить
-    key_to_select = [tree.IdToKey[s_e] for s_e in select_elems]
-    # Обновление дерева
+    # Keys of elements in tree that will then need to be selected
+    key_to_select = [tree.IdToKey[s_e] for s_e in selected_elements]
+    # Update elements in tree
     tree.update(values=treedata)
-    # Выделение элементов в дереве, ранее выбранных пользователем
+    # Selection of elements in tree previously selected by user
     tree_ids = [key_to_tree_id(tree, key) for key in key_to_select]
     if tree_ids:
         tree.Widget.see(tree_ids[0])
         tree.Widget.selection_set(tree_ids)
 
 
-def add_macros(tree):
-    ''''''
+def add_macro(tree):
+    '''Record and add new macro'''
     # Run new key tracker
-    new_macros = ActionsTrack()
+    new_macros = MacrosRecorder()
     new_macros.start()
     # Waiting for stop key tracking
-    while new_macros.is_tracking:
+    while new_macros.is_recording:
         pass
     # Add new key to existing macros
-    actions_tracker.insert(new_macros)
+    macro_record.insert(new_macros)
     treedata = tree.TreeData
     treedata_len = len(tree.IdToKey)
     for i in range(new_macros.length()):
         treedata.Insert('', i+treedata_len, new_macros.get_action(i), values=[])
     tree.update(values=treedata)
 
-def delete_selected(tree):
-    # Список выбранных элементов
-    select_elems = tree.Widget.selection()
-    # Если ни один элемент не выбран, то выход
-    if len(select_elems) == 0:
+def delete_macro_actions(tree):
+    '''Delete selected actions in macro'''
+    # List of selected tree elements
+    selected_elements = tree.Widget.selection()
+    # If no one element selected then exit
+    if len(selected_elements) == 0:
         return
 
-    # Получение основных элементов дерева
+    # Getting tree data
     treedata = tree.TreeData
 
-    # Удаление выбранных элементов
-    for s_e in select_elems:
+    # Deleting selected tree elements
+    for s_e in selected_elements:
         node = treedata.tree_dict[tree.IdToKey[s_e]]
         parent_node = treedata.tree_dict[node.parent]
         index = parent_node.children.index(node)
-        actions_tracker.remove(index)
+        macro_record.remove(index)
         parent_node.children.remove(node)
-
-    # Обновление дерева
     tree.update(values=treedata)
 
 
-def clear_tree(tree):
-    actions_tracker.clear()
+def clear_macro(tree):
+    '''Clearing macro record'''
+    macro_record.clear()
     tree.update(values=sg.TreeData())
 
 
-def run_tracker():
+def run_macro():
+    '''Running macro record with delay'''
     time.sleep(4)
-    actions_tracker.run()
+    macro_record.run()
 
 
-def load_macros(tree):
+def load_macro(tree):
     '''Load macros file with browse dialog'''
     # User choose file
     macros_file = sg.popup_get_file(
@@ -118,14 +121,14 @@ def load_macros(tree):
         return
     # Read file and fill tree
     with open(macros_file, 'r') as infile:
-        actions_tracker.from_json(infile.read())
+        macro_record.from_json(infile.read())
     treedata = sg.TreeData()
-    for i in range(actions_tracker.length()):
-        treedata.Insert('', i, actions_tracker.get_action(i), values=[])
+    for i in range(macro_record.length()):
+        treedata.Insert('', i, macro_record.get_action(i), values=[])
     tree.update(values=treedata)
 
 
-def save_macros(tree):
+def save_macro(tree):
     '''Save macros to file with browse dialog'''
     # Chose path to save file and its name
     save_file = sg.popup_get_file(
@@ -136,11 +139,13 @@ def save_macros(tree):
     )
     # Save
     with open(save_file, 'w') as outfile:
-        outfile.write(actions_tracker.to_json())
+        outfile.write(macro_record.to_json())
 
 
-actions_tracker = ActionsTrack()
+# Macro
+macro_record = MacrosRecorder()
 
+# Creating pysimplegui window
 layout = [
     [
         sg.Button('Move Up'), sg.Button('Move Down'), 
@@ -150,39 +155,39 @@ layout = [
     ],
     [sg.Tree(
         data=sg.TreeData(),
-        key='Track tree',
+        key='Macros tree',
         headings=['Nothing'],
         # select_mode=sg.TABLE_SELECT_MODE_BROWSE,
     )],
     [sg.Button('Run'), sg.Button('Load'), sg.Button('Save')],
 ]
-
-window = sg.Window('Holop', layout, resizable=True, size=(1000, 1000), finalize=True)
-window['Track tree'].expand(True,True)
+window = sg.Window('Holop', layout, resizable=True, size=(700, 700), finalize=True)
+window['Macros tree'].expand(True, True)
 # Hide titles of columns
-window['Track tree'].Widget.configure(show='tree')
+window['Macros tree'].Widget.configure(show='tree')
 
+# Window event handling until it close
 while True:
     event, values = window.read()
     if event == sg.WINDOW_CLOSED:
         break
     elif event == 'Move Up':
-        nodes_elevator(window['Track tree'], 'up')
+        tree_elements_move(window['Macros tree'], 'up')
     elif event == 'Move Down':
-        nodes_elevator(window['Track tree'], 'down')
+        tree_elements_move(window['Macros tree'], 'down')
     elif event == 'Add':
-        add_macros(window['Track tree'])
+        add_macro(window['Macros tree'])
     elif event == 'Delete':
-        delete_selected(window['Track tree'])
+        delete_macro_actions(window['Macros tree'])
     # elif event == 'Change':
     #     print('Change not work yet')
     elif event == 'Clear':
-        clear_tree(window['Track tree'])
+        clear_macro(window['Macros tree'])
     elif event == 'Run':
-        run_tracker()
+        run_macro()
     elif event == 'Load':
-        load_macros(window['Track tree'])
+        load_macro(window['Macros tree'])
     elif event == 'Save':
-        save_macros(window['Track tree'])
+        save_macro(window['Macros tree'])
 
 window.close()

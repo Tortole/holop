@@ -1,0 +1,54 @@
+[
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "shift"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "shift"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "a"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "a"
+    },
+    {
+        "device": "keyboard",
+        "action": "press",
+        "key": "backspace"
+    },
+    {
+        "device": "keyboard",
+        "action": "release",
+        "key": "backspace"
+    },
+    {
+        "device": "mouse",
+        "action": "press",
+        "x": 0.3128255208333333,
+        "y": 0.24016203703703703,
+        "button": "left"
+    },
+    {
+        "device": "mouse",
+        "action": "release",
+        "x": 0.3128255208333333,
+        "y": 0.24016203703703703,
+        "button": "left"
+    },
+    {
+        "device": "mouse",
+        "action": "scroll",
+        "x": 0.3128255208333333,
+        "y": 0.24016203703703703,
+        "dx": 0,
+        "dy": -1
+    }
+]

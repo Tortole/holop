@@ -3,6 +3,9 @@ import time
 from pynput import keyboard, mouse
 from screeninfo import get_monitors
 
+from find_image_on_screen import find_image_on_screen
+from gui_mouse_hover import make_cut_gui
+
 
 class MacrosRecorder:
     '''Macros recorder'''
@@ -65,13 +68,38 @@ class MacrosRecorder:
     def _on_click_mouse(self, x, y, button, is_pressed):
         '''Function that activated on mouse click'''
         if self.is_recording:
+            # self._add_action(
+            #     'mouse',
+            #     'press' if is_pressed else 'release',
+            #     x=x,
+            #     y=y,
+            #     button=button
+            # )
+
+            # vvvv !!! mouse pointer hovering with image !!! vvvv
+            self.pause()
+
+            img_path = make_cut_gui()
+
             self._add_action(
                 'mouse',
-                'press' if is_pressed else 'release',
+                'press',
                 x=x,
                 y=y,
-                button=button
+                button=button,
+                img_hover=img_path
             )
+            self._add_action(
+                'mouse',
+                'release',
+                x=x,
+                y=y,
+                button=button,
+                img_hover=img_path
+            )
+
+            self.unpause()
+            # ^^^^ !!! mouse pointer hovering with image !!! ^^^^
 
     def _on_scroll_mouse(self, x, y, dx, dy):
         '''Function that activated on mouse scroll'''
@@ -182,9 +210,25 @@ class MacrosRecorder:
                     mouse_controller.scroll(m['dx'], m['dy'])
                 # Pressing mouse button
                 elif m['action'] == 'press':
+                    # vvvv !!! mouse pointer hovering with image !!! vvvv
+                    x, y = find_image_on_screen(m['img_hover'])
+                    print('press in ', x, y)
+                    mouse_controller.move(
+                        x - mouse_controller.position[0],
+                        y - mouse_controller.position[1]
+                    )
+                    # ^^^^ !!! mouse pointer hovering with image !!! ^^^^
                     mouse_controller.press(m['button'])
                 # Releasing mouse button
                 elif m['action'] == 'release':
+                    # vvvv !!! mouse pointer hovering with image !!! vvvv
+                    x, y = find_image_on_screen(m['img_hover'])
+                    print('release in ', x, y)
+                    mouse_controller.move(
+                        x - mouse_controller.position[0],
+                        y - mouse_controller.position[1]
+                    )
+                    # ^^^^ !!! mouse pointer hovering with image !!! ^^^^
                     mouse_controller.release(m['button'])
 
     @staticmethod

@@ -20,6 +20,12 @@ class MacrosRecorder:
         # A lot of currently pressed keys
         self.pressed_keys = set()
 
+    def _action_distributor(self, device, action, **kwargs):
+        pass
+
+    def wait_action(self):
+        pass
+
     def _add_action(self, device, action, **kwargs):
         '''Add action in macro'''
         if action not in ['press', 'release', 'move', 'scroll']:
@@ -114,6 +120,18 @@ class MacrosRecorder:
             self.pressed_keys.discard(key)
 
     # ^^^^ keyboard ^^^^
+
+    def start_listen(self):
+        pass
+
+    def stop_listen(self):
+        pass
+
+    def start_record(self):
+        pass
+
+    def stop_record(self):
+        pass
 
     def start(self):
         '''Starting macro recording'''

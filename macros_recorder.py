@@ -19,12 +19,46 @@ class MacrosRecorder:
         self.macro = []
         # A lot of currently pressed keys
         self.pressed_keys = set()
+        # 
+        self.last_action = None
 
     def _action_distributor(self, device, action, **kwargs):
-        pass
+        '''!!!'''
+
+        if action not in ['press', 'release', 'move', 'scroll']:
+            raise ValueError('Wrong action name.')
+        if device == 'keyboard':
+            action_dict = {
+                'device': device,
+                'action': action,
+                'key': kwargs['key']
+            }
+        elif device == 'mouse':
+            action_dict = {
+                'device': device,
+                'action': action,
+                'x': kwargs['x'],
+                'y': kwargs['y']
+            }
+            if action == 'press' or action == 'release':
+                action_dict['button'] = kwargs['button']
+            if action == 'scroll':
+                action_dict['dx'] = kwargs['dx']
+                action_dict['dy'] = kwargs['dy']
+        else:
+            raise ValueError('Wrong device name.')
+
+        self.last_action = action_dict
+        if self.is_recording:
+            self.macro.append(action_dict)
+
+        # Call event
+
 
     def wait_action(self):
-        pass
+        ''''''
+        # Wait event
+        return self.last_action
 
     def _add_action(self, device, action, **kwargs):
         '''Add action in macro'''
@@ -122,16 +156,40 @@ class MacrosRecorder:
     # ^^^^ keyboard ^^^^
 
     def start_listen(self):
-        pass
+        '''Starting action listen'''
+        assert not self.is_listening, 'Listen already start'
+        self.keyboard_listener = keyboard.Listener(
+            on_press=self._on_press_keyboard,
+            on_release=self._on_release_keyboard
+        )
+        self.mouse_listener = mouse.Listener(
+            on_move=self._on_move_mouse,
+            on_click=self._on_click_mouse,
+            on_scroll=self._on_scroll_mouse
+        )
+
+        self.is_listening = True
+        self.is_recording = False
+        self.keyboard_listener.start()
+        self.mouse_listener.start()
 
     def stop_listen(self):
-        pass
+        '''Stopping action listen'''
+        if self.is_listening:
+            self.is_listening = False
+            self.is_recording = False
+            self.mouse_listener.stop()
+            self.keyboard_listener.stop()
 
     def start_record(self):
-        pass
+        '''Starting macro recording'''
+        assert self.is_listening, 'Listen not start'
+        self.is_recording = True
 
     def stop_record(self):
-        pass
+        '''Stopping macro recording'''
+        assert self.is_listening, 'Listen not start'
+        self.is_recording = False
 
     def start(self):
         '''Starting macro recording'''
@@ -159,7 +217,7 @@ class MacrosRecorder:
         self.is_recording = True
 
     def stop(self):
-        '''Stoping macro recording'''
+        '''Stopping macro recording'''
         self.is_listening = False # !!!
         self.is_recording = False
         self.mouse_listener.stop()

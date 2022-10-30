@@ -3,6 +3,7 @@ import PySimpleGUI as sg
 from pynput import keyboard
 
 from macros_recorder import MacrosRecorder
+from gui_mouse_hover import make_cut_gui
 
 
 def key_to_tree_id(tree, key):
@@ -74,6 +75,21 @@ def add_macro(tree):
             new_macros.stop_listen()
             new_macros.remove(-1)
             break
+        if last_action['device'] == 'mouse' and last_action['action'] == 'press':
+            new_macros.stop_record()
+            img_path = make_cut_gui()
+            # !!!
+            new_macros.macro[-1]['img_hover'] = img_path
+            new_macros.macro.append({
+                'device': 'mouse',
+                'action': 'release',
+                'x': last_action['x'],
+                'y': last_action['y'],
+                'button': last_action['button'],
+                'img_hover': img_path
+            })
+            new_macros.start_record()
+
     # Add new key to existing macros
     macro_record.insert(new_macros)
     treedata = tree.TreeData

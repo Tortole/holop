@@ -4,6 +4,8 @@ from pynput import keyboard, mouse
 from screeninfo import get_monitors
 from threading import Event
 
+from find_image_on_screen import find_image_on_screen
+
 
 class MacrosRecorder:
     '''Macros recorder'''
@@ -191,9 +193,13 @@ class MacrosRecorder:
                 # Moving mouse point
                 # the move function in mouse controller
                 # moves the pointer relative to current position
+                if 'img_hover' in m:
+                    x, y = find_image_on_screen(m['img_hover'])
+                else:
+                    x, y = m['x'], m['y']
                 mouse_controller.move(
-                    m['x'] - mouse_controller.position[0],
-                    m['y'] - mouse_controller.position[1]
+                    x - mouse_controller.position[0],
+                    y - mouse_controller.position[1]
                 )
                 # Mouse scrolling
                 if m['action'] == 'scroll':

@@ -2,9 +2,7 @@ import json
 import time
 from pynput import keyboard, mouse
 from screeninfo import get_monitors
-
-from find_image_on_screen import find_image_on_screen
-from gui_mouse_hover import make_cut_gui
+from threading import Event
 
 
 class MacrosRecorder:
@@ -16,24 +14,25 @@ class MacrosRecorder:
         # Keyboard and mouse listeners
         self.keyboard_listener = None
         self.mouse_listener = None
-        # Key for macros recording control
-        self.hotkey_record_manage = keyboard.Key.shift_r
         # Sequence of keyboard and mouse actions
         self.macro = []
         # A lot of currently pressed keys
         self.pressed_keys = set()
+        # Event for block until wait next action
+        self.wait_event = Event()
+        # Last action
+        self.last_action = None
 
-    def _add_action(self, device, action, **kwargs):
-        '''Add action in macro'''
+    def _action_distributor(self, device, action, **kwargs):
+        '''Distributes the action depending on the states'''
         if action not in ['press', 'release', 'move', 'scroll']:
             raise ValueError('Wrong action name.')
-
         if device == 'keyboard':
-            self.macro.append({
+            action_dict = {
                 'device': device,
                 'action': action,
                 'key': kwargs['key']
-            })
+            }
         elif device == 'mouse':
             action_dict = {
                 'device': device,
@@ -46,9 +45,22 @@ class MacrosRecorder:
             if action == 'scroll':
                 action_dict['dx'] = kwargs['dx']
                 action_dict['dy'] = kwargs['dy']
-            self.macro.append(action_dict)
         else:
             raise ValueError('Wrong device name.')
+
+        self.last_action = action_dict
+        if self.is_recording:
+            self.macro.append(action_dict)
+
+        # Call event
+        self.wait_event.set()
+        self.wait_event.clear()
+
+    def wait_action(self):
+        '''Wait next action'''
+        # Wait event
+        self.wait_event.wait()
+        return self.last_action
 
     def remove(self, index):
         '''Remote action from macro by index'''
@@ -58,71 +70,52 @@ class MacrosRecorder:
         '''Clearing macro'''
         self.macro = []
 
-    # vvvv mouse vvvv
+    def insert(self, other_macro_record, index=-1):
+        '''Inserting in macro another macro'''
+        if self.length() <= index < 0: raise ValueError('Index incorrect.')
+        self.macro[index:index] = other_macro_record.macro
+
+    def length(self):
+        '''Getting count of actions on macro'''
+        return len(self.macro)
+
+    def swap(self, first, second):
+        '''Swapping two actions in macro by index'''
+        self.macro[first], self.macro[second] = self.macro[second], self.macro[first]
+
+    # vvvvvvvv mouse vvvvvvvv
 
     def _on_move_mouse(self, x, y):
         '''Function that activated on mouse move'''
-        if self.is_recording:
-            pass
+        pass
 
     def _on_click_mouse(self, x, y, button, is_pressed):
         '''Function that activated on mouse click'''
-        if self.is_recording:
-            # self._add_action(
-            #     'mouse',
-            #     'press' if is_pressed else 'release',
-            #     x=x,
-            #     y=y,
-            #     button=button
-            # )
-
-            # vvvv !!! mouse pointer hovering with image !!! vvvv
-            self.pause()
-
-            img_path = make_cut_gui()
-
-            self._add_action(
-                'mouse',
-                'press',
-                x=x,
-                y=y,
-                button=button,
-                img_hover=img_path
-            )
-            self._add_action(
-                'mouse',
-                'release',
-                x=x,
-                y=y,
-                button=button,
-                img_hover=img_path
-            )
-
-            self.unpause()
-            # ^^^^ !!! mouse pointer hovering with image !!! ^^^^
+        self._action_distributor(
+            'mouse',
+            'press' if is_pressed else 'release',
+            x=x,
+            y=y,
+            button=button
+        )
 
     def _on_scroll_mouse(self, x, y, dx, dy):
         '''Function that activated on mouse scroll'''
-        if self.is_recording:
-            self._add_action(
-                'mouse',
-                'scroll',
-                x=x,
-                y=y,
-                dx=dx,
-                dy=dy
-            )
+        self._action_distributor(
+            'mouse',
+            'scroll',
+            x=x,
+            y=y,
+            dx=dx,
+            dy=dy
+        )
 
-    # ^^^^ mouse ^^^^
-    # vvvv keyboard vvvv
+    # vvvvvvvv keyboard vvvvvvvv
 
     def _on_press_keyboard(self, key):
         '''Function that activated on keyboar key press'''
-        if key == self.hotkey_record_manage:
-            # nothing
-            pass
-        elif self.is_recording and key not in self.pressed_keys:
-            self._add_action(
+        if key not in self.pressed_keys:
+            self._action_distributor(
                 'keyboard',
                 'press',
                 key=key
@@ -131,20 +124,18 @@ class MacrosRecorder:
 
     def _on_release_keyboard(self, key):
         '''Function that activated on keyboar key release'''
-        if key == self.hotkey_record_manage:
-            self.is_recording = not self.is_recording
-        elif self.is_recording:
-            self._add_action(
-                'keyboard',
-                'release',
-                key=key
-            )
-            self.pressed_keys.discard(key)
+        self._action_distributor(
+            'keyboard',
+            'release',
+            key=key
+        )
+        self.pressed_keys.discard(key)
 
-    # ^^^^ keyboard ^^^^
+    # vvvvvvvv control macro vvvvvvvv
 
-    def start(self):
-        '''Starting macro recording'''
+    def start_listen(self):
+        '''Starting action listen'''
+        assert not self.is_listening, 'Listen already start'
         self.keyboard_listener = keyboard.Listener(
             on_press=self._on_press_keyboard,
             on_release=self._on_release_keyboard
@@ -155,30 +146,29 @@ class MacrosRecorder:
             on_scroll=self._on_scroll_mouse
         )
 
-        self.is_listening = True # !!!
-        self.is_recording = True
+        self.is_listening = True
+        self.is_recording = False
+        self.pressed_keys.clear()
         self.keyboard_listener.start()
         self.mouse_listener.start()
 
-    def pause(self):
-        '''Pausing macro recording'''
-        self.is_recording = False
+    def stop_listen(self):
+        '''Stopping action listen'''
+        if self.is_listening:
+            self.is_listening = False
+            self.is_recording = False
+            self.mouse_listener.stop()
+            self.keyboard_listener.stop()
 
-    def unpause(self):
-        '''Removing from pause macro recording'''
+    def start_record(self):
+        '''Starting macro recording'''
+        assert self.is_listening, 'Listen not start'
         self.is_recording = True
 
-    def stop(self):
-        '''Stoping macro recording'''
-        self.is_listening = False # !!!
+    def stop_record(self):
+        '''Stopping macro recording'''
+        assert self.is_listening, 'Listen not start'
         self.is_recording = False
-        self.mouse_listener.stop()
-        self.keyboard_listener.stop()
-
-    def insert(self, other_macro_record, index=-1):
-        '''Inserting in macro another macro'''
-        if self.length() <= index < 0: raise ValueError('Index incorrect.')
-        self.macro[index:index] = other_macro_record.macro
 
     def run(self):
         '''Running macro'''
@@ -210,42 +200,28 @@ class MacrosRecorder:
                     mouse_controller.scroll(m['dx'], m['dy'])
                 # Pressing mouse button
                 elif m['action'] == 'press':
-                    # vvvv !!! mouse pointer hovering with image !!! vvvv
-                    x, y = find_image_on_screen(m['img_hover'])
-                    print('press in ', x, y)
-                    mouse_controller.move(
-                        x - mouse_controller.position[0],
-                        y - mouse_controller.position[1]
-                    )
-                    # ^^^^ !!! mouse pointer hovering with image !!! ^^^^
                     mouse_controller.press(m['button'])
                 # Releasing mouse button
                 elif m['action'] == 'release':
-                    # vvvv !!! mouse pointer hovering with image !!! vvvv
-                    x, y = find_image_on_screen(m['img_hover'])
-                    print('release in ', x, y)
-                    mouse_controller.move(
-                        x - mouse_controller.position[0],
-                        y - mouse_controller.position[1]
-                    )
-                    # ^^^^ !!! mouse pointer hovering with image !!! ^^^^
                     mouse_controller.release(m['button'])
 
+    # vvvvvvvv export macro vvvvvvvv
+
     @staticmethod
-    def get_resolution():
+    def _get_resolution():
         '''Getting resolution of primary monitor'''
         for m in get_monitors():
             if m.is_primary:
                 return {'width': m.width, 'height': m.height}
 
     @staticmethod
-    def to_relative_coord(x, y):
+    def _to_relative_coord(x, y):
         '''Getting relative mouse pointer coordinates from absolute'''
         resolution = MacrosRecorder.get_resolution()
         return x / resolution['width'], y / resolution['height']
 
     @staticmethod
-    def to_absolute_coord(x, y):
+    def _to_absolute_coord(x, y):
         '''Getting absolute mouse pointer coordinates from relative'''
         resolution = MacrosRecorder.get_resolution()
         return round(x * resolution['width']), round(y * resolution['height'])
@@ -290,14 +266,6 @@ class MacrosRecorder:
                 action=m['action'],
                 **{k: v for k, v in convert(m).items() if k not in ['device', 'action']}
             )
-
-    def length(self):
-        '''Getting count of actions on macro'''
-        return len(self.macro)
-
-    def swap(self, first, second):
-        '''Swapping two actions in macro'''
-        self.macro[first], self.macro[second] = self.macro[second], self.macro[first]
 
     def get_action(self, index):
         '''Getting action in macro in string format'''

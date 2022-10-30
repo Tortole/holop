@@ -1,5 +1,6 @@
 import time
 import PySimpleGUI as sg
+from pynput import keyboard
 
 from macros_recorder import MacrosRecorder
 
@@ -63,10 +64,16 @@ def add_macro(tree):
     '''Record and add new macro'''
     # Run new key tracker
     new_macros = MacrosRecorder()
-    new_macros.start()
+    new_macros.start_listen()
+    new_macros.start_record()
     # Waiting for stop key tracking
     while new_macros.is_recording:
-        pass
+        last_action = new_macros.wait_action()
+        if last_action.get('key') == keyboard.Key.shift_r:
+            new_macros.stop_record()
+            new_macros.stop_listen()
+            new_macros.remove(-1)
+            break
     # Add new key to existing macros
     macro_record.insert(new_macros)
     treedata = tree.TreeData
